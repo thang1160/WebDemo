@@ -1,0 +1,67 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<div class="jumbotron">
+    <h1>ASP.NET</h1>
+    <p id="lead" class="lead">ASP.NET is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
+    <p><button onclick="subscribe()" class="btn btn-primary btn-lg">Learn more &raquo;</button></p>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <h2>Getting started</h2>
+        <p>
+            ASP.NET MVC gives you a powerful, patterns-based way to build dynamic websites that
+            enables a clean separation of concerns and gives you full control over markup
+            for enjoyable, agile development.
+        </p>
+        <p><button class="btn btn-default" onclick="subscribe()" id="enable">Learn more &raquo;</button></p>
+    </div>
+    <div class="col-md-4">
+        <h2>Get more libraries</h2>
+        <p>NuGet is a free Visual Studio extension that makes it easy to add, remove, and update libraries and tools in Visual Studio projects.</p>
+        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301866">Learn more &raquo;</a></p>
+    </div>
+    <div class="col-md-4">
+        <h2>Web Hosting</h2>
+        <p>You can easily find a web hosting company that offers the right mix of features and price for your applications.</p>
+        <p><a class="btn btn-default" href="https://go.microsoft.com/fwlink/?LinkId=301867">Learn more &raquo;</a></p>
+    </div>
+</div>
+<script src="~/sw.js"></script>
+<script>
+    var temp;
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').then((registration) => {
+            //alert('sw');
+            console.log('ServiceWorker successful, scope: ', registration.scope);
+        }).catch((err) => {
+            alert(err)
+            console.log('ServiceWorker failed: ', err);
+        });
+    }
+
+    addEventListener('load', async () => {
+        let sw = await navigator.serviceWorker.register('./sw.js', {
+            scope: '/'
+        });
+        console.log(sw);
+    })
+
+    async function subscribe() {
+        let sw = await navigator.serviceWorker.ready;
+        console.log(sw)
+        //let push = await
+        sw.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey:
+                'BMEf2HHXX9p2gOV9FCn5Ds6sLjYFxEoyctGqh73PfzhUSg_I2MuoyxABXR6EWHLBPdVsup61nAfR1-nEQC2yGYM'
+        }).then(function (sub) {
+            document.getElementById("lead").innerHTML = JSON.stringify(sub);
+            console.log(JSON.stringify(sub))
+        })
+        //console.log(JSON.stringify(push));
+    }
+</script>
