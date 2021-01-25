@@ -1,61 +1,38 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Web;
+using System.Web.Hosting;
 using System.Web.Mvc;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
+using Google.Apis.Upload;
 using Google.Apis.Util.Store;
 
 namespace WebApp.Controllers
 {
     public class DownloadController : Controller
     {
-        // GET: Download
-        public ActionResult Index(string url)
-        {
-            string download = url.Split(new string[] { "google.com/file/d/" }, StringSplitOptions.RemoveEmptyEntries)[1];
-            download = @"https://drive.google.com/uc?export=download&id=" + download.Split('/')[0];
-            using (var webClient = new WebClient())
-            {
-                byte[] imageBytes = webClient.DownloadData(download);
-                using (var ms = new MemoryStream(imageBytes))
-                {
-                    Image output = Image.FromStream(ms);
-                    output.Save(@"C:\Users\SAP-LAP-FPT\Desktop\" + DateTime.Now.Ticks + ".jpg");
-                }
-            }
-            //using (MemoryStream ms = new MemoryStream()
-            //{
-            //    byte[] buffer = new byte[4096];
-            //    int bytesRead = 0;
-            //    while ((bytesRead = sr.Read(buffer, 0, buffer.Length)) != 0)
-            //    {
-            //        dataStream.Write(buffer, 0, bytesRead);
-            //    }
-            //}
-            //WebClient wb = new WebClient();
-            //wb.DownloadFile(download, @"C:\Users\SAP-LAP-FPT\Desktop\" + DateTime.Now.Ticks + ".jpg");
-
-            return Redirect("/");
-        }
-
         // If modifying these scopes, delete your previously saved credentials
         // at ~/.credentials/drive-dotnet-quickstart.json
         static string[] Scopes = { DriveService.Scope.DriveReadonly };
         static string ApplicationName = "Drive API .NET Quickstart";
 
-        static void Main(string[] args)
+        // GET: Download
+        public ActionResult Index(string url)
         {
             UserCredential credential;
 
+            string directory = HostingEnvironment.MapPath("/credentials.json");
+
             using (var stream =
-                new FileStream("credentials.json", FileMode.Open, FileAccess.Read))
+                new FileStream(directory.ToString(), FileMode.Open, FileAccess.Read))
             {
                 // The file token.json stores the user's access and refresh tokens, and is created
                 // automatically when the authorization flow completes for the first time.
@@ -66,7 +43,7 @@ namespace WebApp.Controllers
                     "user",
                     CancellationToken.None,
                     new FileDataStore(credPath, true)).Result;
-                Console.WriteLine("Credential file saved to: " + credPath);
+                Debug.WriteLine("Credential file saved to: " + credPath);
             }
 
             // Create Drive API service.
@@ -76,28 +53,77 @@ namespace WebApp.Controllers
                 ApplicationName = ApplicationName,
             });
 
-            // Define parameters of request.
-            FilesResource.ListRequest listRequest = service.Files.List();
-            listRequest.PageSize = 10;
-            listRequest.Fields = "nextPageToken, files(id, name)";
-
-            // List files.
-            IList<Google.Apis.Drive.v3.Data.File> files = listRequest.Execute()
-                .Files;
-            Console.WriteLine("Files:");
-            if (files != null && files.Count > 0)
+            Google.Apis.Drive.v3.Data.File fileMetadata = new Google.Apis.Drive.v3.Data.File
             {
-                foreach (var file in files)
+                Name = DateTime.Now.Ticks + ".jpg",
+                MimeType = "image/jpeg"
+            };
+
+            string download = url.Split(new string[] { "google.com/file/d/" }, StringSplitOptions.RemoveEmptyEntries)[1];
+            download = @"https://drive.google.com/uc?export=download&id=" + download.Split('/')[0];
+            using (var webClient = new WebClient())
+            {
+                byte[] imageBytes = webClient.DownloadData(download);
+                using (var ms = new MemoryStream(imageBytes))
                 {
-                    Console.WriteLine("{0} ({1})", file.Name, file.Id);
+                    FilesResource.CreateMediaUpload request = service.Files.Create(fileMetadata, ms, "image/jpeg");
+                    request.SupportsAllDrives = true;
+                    request.ResponseReceived += Request_ResponseReceived;
+                    IUploadProgress result = request.Upload();
+                    Debug.WriteLine(result.Status);
+                    if (result.Status != UploadStatus.Completed)
+                    {
+                        var rdn = new Random();
+                        var waitTime = 0;
+                        var count = 0;
+                        do
+                        {
+                            waitTime = (Convert.ToInt32(Math.Pow(2, count)) * 1000) + rdn.Next(0, 1000);
+                            Thread.Sleep(waitTime);
+
+                            result = request.Upload();
+                            count++;
+
+                        } while (count < 5 && (result.Status != UploadStatus.Completed));
+                    }//end solution
+
+                    Google.Apis.Drive.v3.Data.File file = request.ResponseBody;
+                    Debug.WriteLine("File was uploaded sucessfully--" + file.Id);
+                    //output.Save(@"C:\Users\SAP-LAP-FPT\Desktop\" + DateTime.Now.Ticks + ".jpg");
                 }
             }
-            else
-            {
-                Console.WriteLine("No files found.");
-            }
-            Console.Read();
 
+
+            // Define parameters of request.
+            //FilesResource.ListRequest listRequest = service.Files.List();
+            //listRequest.PageSize = 10;
+            //listRequest.Fields = "nextPageToken, files(id, name)";
+
+            //// List files.
+            //IList<Google.Apis.Drive.v3.Data.File> files = listRequest.Execute()
+            //    .Files;
+            //Debug.WriteLine("Files:");
+            //if (files != null && files.Count > 0)
+            //{
+            //    foreach (var file in files)
+            //    {
+            //        Debug.WriteLine("{0} ({1})", file.Name, file.Id);
+            //    }
+            //}
+            //else
+            //{
+            //    Debug.WriteLine("No files found.");
+            //}
+
+            return Redirect("/");
+        }
+
+        private void Request_ResponseReceived(Google.Apis.Drive.v3.Data.File obj)
+        {
+            if (obj != null)
+            {
+                Debug.WriteLine("File was uploaded sucessfully--" + obj.Id);
+            }
         }
     }
 }

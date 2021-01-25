@@ -248,6 +248,7 @@
     <Content Include="Scripts\init.js" />
     <Content Include="Scripts\git_hooks\post-update.sample" />
     <Content Include="Scripts\git_hooks\pre-applypatch.sample" />
+    <Content Include="credentials.json" />
     <None Include="Scripts\git_hooks\pre-commit" />
     <Content Include="Scripts\git_hooks\pre-merge-commit.sample" />
     <Content Include="Scripts\git_hooks\pre-push.sample" />
