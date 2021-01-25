@@ -245,7 +245,7 @@
     <Content Include="Scripts\git_hooks\applypatch-msg.sample" />
     <Content Include="Scripts\git_hooks\commit-msg.sample" />
     <Content Include="Scripts\git_hooks\fsmonitor-watchman.sample" />
-    <Content Include="Scripts\git_hooks\init.js" />
+    <Content Include="Scripts\init.js" />
     <Content Include="Scripts\git_hooks\post-update.sample" />
     <Content Include="Scripts\git_hooks\pre-applypatch.sample" />
     <None Include="Scripts\git_hooks\pre-commit" />
