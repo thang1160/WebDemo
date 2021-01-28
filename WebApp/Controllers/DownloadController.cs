@@ -6,10 +6,13 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Hosting;
 using System.Web.Mvc;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2.Flows;
+using Google.Apis.Auth.OAuth2.Mvc;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
 using Google.Apis.Upload;
@@ -19,44 +22,48 @@ namespace WebApp.Controllers
 {
     public class DownloadController : Controller
     {
-        // If modifying these scopes, delete your previously saved credentials
-        // at ~/.credentials/drive-dotnet-quickstart.json
-        static string[] Scopes = { DriveService.Scope.DriveReadonly };
-        static string ApplicationName = "Drive API .NET Quickstart";
-
         // GET: Download
         public ActionResult Index(string url)
         {
+            // Thiết lập phạm vi truy xuất dữ liệu Scope = Drive để upload file
+            string[] Scopes = { DriveService.Scope.Drive };
+            string ApplicationName = "Google Drive API .NET";
+
             UserCredential credential;
-
-            string directory = HostingEnvironment.MapPath("/credentials.json");
-
-            using (var stream =
-                new FileStream(directory.ToString(), FileMode.Open, FileAccess.Read))
+            using (var stream = new FileStream(HostingEnvironment.MapPath("/credentials.json"), FileMode.Open, FileAccess.Read))
             {
-                // The file token.json stores the user's access and refresh tokens, and is created
-                // automatically when the authorization flow completes for the first time.
+
+                // Thông tin về quyền truy xuất dữ liệu của người dùng được lưu ở thư mục token.json
                 string credPath = "token.json";
+
+                // Yêu cầu người dùng xác thực lần đầu và thông tin sẽ được lưu vào thư mục token.json
                 credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
                     GoogleClientSecrets.Load(stream).Secrets,
-                    Scopes,
+                    Scopes,  // Quyền truy xuất dữ liệu của người dùng
                     "user",
-                    CancellationToken.None,
-                    new FileDataStore(credPath, true)).Result;
-                Debug.WriteLine("Credential file saved to: " + credPath);
+                    CancellationToken.None).Result;
+
+                Console.WriteLine("Credential file saved to: " + credPath);
             }
 
-            // Create Drive API service.
-            var service = new DriveService(new BaseClientService.Initializer()
+
+            // Tạo ra 1 dịch vụ Drive API - Create Drive API service với thông tin xác thực và ApplicationName
+
+            var driveService = new DriveService(new BaseClientService.Initializer()
             {
                 HttpClientInitializer = credential,
                 ApplicationName = ApplicationName,
             });
 
-            Google.Apis.Drive.v3.Data.File fileMetadata = new Google.Apis.Drive.v3.Data.File
+            // ID thư mục file, các bạn thay bằng ID của các bạn khi chạy
+            var fileMetadata = new Google.Apis.Drive.v3.Data.File()
             {
+                // Tên file sẽ lưu trên Google Drive
                 Name = DateTime.Now.Ticks + ".jpg",
-                MimeType = "image/jpeg"
+                Parents = new List<string>
+                {
+                    "1heLB1zJxTqq0UrZ8sPn-seoyThzZ-hUW"
+                }
             };
 
             string download = url.Split(new string[] { "google.com/file/d/" }, StringSplitOptions.RemoveEmptyEntries)[1];
@@ -66,64 +73,23 @@ namespace WebApp.Controllers
                 byte[] imageBytes = webClient.DownloadData(download);
                 using (var ms = new MemoryStream(imageBytes))
                 {
-                    FilesResource.CreateMediaUpload request = service.Files.Create(fileMetadata, ms, "image/jpeg");
+                    FilesResource.CreateMediaUpload request = driveService.Files.Create(fileMetadata, ms, "image/jpeg");
+                    // Cấu hình thông tin lấy về là ID
+                    request.Fields = "id";
                     request.SupportsAllDrives = true;
-                    request.ResponseReceived += Request_ResponseReceived;
-                    IUploadProgress result = request.Upload();
+                    var result = request.Upload();
                     Debug.WriteLine(result.Status);
-                    if (result.Status != UploadStatus.Completed)
-                    {
-                        var rdn = new Random();
-                        var waitTime = 0;
-                        var count = 0;
-                        do
-                        {
-                            waitTime = (Convert.ToInt32(Math.Pow(2, count)) * 1000) + rdn.Next(0, 1000);
-                            Thread.Sleep(waitTime);
 
-                            result = request.Upload();
-                            count++;
-
-                        } while (count < 5 && (result.Status != UploadStatus.Completed));
-                    }//end solution
-
+                    // Trả về thông tin file đã được upload lên Google Drive
                     Google.Apis.Drive.v3.Data.File file = request.ResponseBody;
-                    Debug.WriteLine("File was uploaded sucessfully--" + file.Id);
-                    //output.Save(@"C:\Users\SAP-LAP-FPT\Desktop\" + DateTime.Now.Ticks + ".jpg");
+
+                    Debug.WriteLine("File ID: " + file.Id);
                 }
             }
 
-
-            // Define parameters of request.
-            //FilesResource.ListRequest listRequest = service.Files.List();
-            //listRequest.PageSize = 10;
-            //listRequest.Fields = "nextPageToken, files(id, name)";
-
-            //// List files.
-            //IList<Google.Apis.Drive.v3.Data.File> files = listRequest.Execute()
-            //    .Files;
-            //Debug.WriteLine("Files:");
-            //if (files != null && files.Count > 0)
-            //{
-            //    foreach (var file in files)
-            //    {
-            //        Debug.WriteLine("{0} ({1})", file.Name, file.Id);
-            //    }
-            //}
-            //else
-            //{
-            //    Debug.WriteLine("No files found.");
-            //}
+            credential.RevokeTokenAsync(new CancellationToken());
 
             return Redirect("/");
-        }
-
-        private void Request_ResponseReceived(Google.Apis.Drive.v3.Data.File obj)
-        {
-            if (obj != null)
-            {
-                Debug.WriteLine("File was uploaded sucessfully--" + obj.Id);
-            }
         }
     }
 }
