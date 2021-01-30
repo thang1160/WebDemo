@@ -14,9 +14,11 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Auth.OAuth2.Mvc;
 using Google.Apis.Drive.v3;
+using Google.Apis.Drive.v3.Data;
 using Google.Apis.Services;
 using Google.Apis.Upload;
 using Google.Apis.Util.Store;
+using static Google.Apis.Drive.v3.FilesResource;
 
 namespace WebApp.Controllers
 {
@@ -62,7 +64,7 @@ namespace WebApp.Controllers
                 Name = DateTime.Now.Ticks + ".jpg",
                 Parents = new List<string>
                 {
-                    "1heLB1zJxTqq0UrZ8sPn-seoyThzZ-hUW"
+                    "0AKarybMa3U9QUk9PVA"
                 }
             };
 
@@ -83,11 +85,22 @@ namespace WebApp.Controllers
                     // Trả về thông tin file đã được upload lên Google Drive
                     Google.Apis.Drive.v3.Data.File file = request.ResponseBody;
 
+                    Permission userPermission = new Permission
+                    {
+                        Type = "user",
+                        Role = "reader",
+                        EmailAddress = "doanvanthang4271@gmail.com"
+                    };
+
+                    PermissionsResource.CreateRequest createRequest = driveService.Permissions.Create(userPermission, file.Id);
+                    createRequest.SupportsAllDrives = true;
+                    createRequest.Execute();
+
                     Debug.WriteLine("File ID: " + file.Id);
                 }
             }
 
-            credential.RevokeTokenAsync(new CancellationToken());
+            //credential.RevokeTokenAsync(new CancellationToken());
 
             return Redirect("/");
         }
