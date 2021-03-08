@@ -29,7 +29,6 @@ namespace WebApp.Controllers
         {
             // Thiết lập phạm vi truy xuất dữ liệu Scope = Drive để upload file
             string[] Scopes = { DriveService.Scope.Drive };
-            string ApplicationName = "Google Drive API .NET";
 
             UserCredential credential;
             using (var stream = new FileStream(HostingEnvironment.MapPath("/credentials.json"), FileMode.Open, FileAccess.Read))
@@ -54,8 +53,23 @@ namespace WebApp.Controllers
             var driveService = new DriveService(new BaseClientService.Initializer()
             {
                 HttpClientInitializer = credential,
-                ApplicationName = ApplicationName,
             });
+
+            Google.Apis.Drive.v3.Data.File folderMetadata = new Google.Apis.Drive.v3.Data.File
+            {
+                Name = "SonNT69",
+                MimeType = "application/vnd.google-apps.folder",
+                Parents = new List<string>
+                {
+                    "0AKarybMa3U9QUk9PVA",
+                }
+            };
+
+            CreateRequest CreateFolderRequest = driveService.Files.Create(folderMetadata);
+            CreateFolderRequest.Fields = "id";
+            CreateFolderRequest.SupportsAllDrives = true;
+
+            Google.Apis.Drive.v3.Data.File folder = CreateFolderRequest.Execute();
 
             // ID thư mục file, các bạn thay bằng ID của các bạn khi chạy
             var fileMetadata = new Google.Apis.Drive.v3.Data.File()
@@ -64,7 +78,7 @@ namespace WebApp.Controllers
                 Name = DateTime.Now.Ticks + ".jpg",
                 Parents = new List<string>
                 {
-                    "0AKarybMa3U9QUk9PVA"
+                    folder.Id
                 }
             };
 
